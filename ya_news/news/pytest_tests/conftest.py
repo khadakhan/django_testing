@@ -1,9 +1,9 @@
-import pytest
-
 from datetime import datetime, timedelta
+
+import pytest
 from django.conf import settings
 from django.test.client import Client
-from django.utils import timezone
+from django.urls import reverse
 
 from news.models import Comment, News
 
@@ -42,11 +42,6 @@ def news():
 
 
 @pytest.fixture
-def pk_for_news_args(news):
-    return (news.pk,)
-
-
-@pytest.fixture
 def comment(news, author):
     comment = Comment.objects.create(
         news=news,
@@ -54,11 +49,6 @@ def comment(news, author):
         text='Текст комментария'
     )
     return comment
-
-
-@pytest.fixture
-def pk_for_comment_args(comment):
-    return (comment.pk,)
 
 
 @pytest.fixture
@@ -77,15 +67,12 @@ def all_news():
 
 @pytest.fixture
 def all_comments(news, author):
-    now = timezone.now()
     for index in range(10):
-        comment = Comment.objects.create(
+        Comment.objects.create(
             news=news,
             author=author,
             text=f'Tекст {index}',
         )
-        comment.created = now + timedelta(days=index)
-        comment.save()
 
 
 @pytest.fixture
@@ -93,3 +80,38 @@ def form_data():
     return {
         'text': 'Новый текст',
     }
+
+
+@pytest.fixture
+def home_url():
+    return reverse('news:home')
+
+
+@pytest.fixture
+def login_url():
+    return reverse('users:login')
+
+
+@pytest.fixture
+def logout_url():
+    return reverse('users:logout')
+
+
+@pytest.fixture
+def signup_url():
+    return reverse('users:signup')
+
+
+@pytest.fixture
+def detail_url(news):
+    return reverse('news:detail', args=(news.pk,))
+
+
+@pytest.fixture
+def edit_url(comment):
+    return reverse('news:edit', args=(comment.pk,))
+
+
+@pytest.fixture
+def delete_url(comment):
+    return reverse('news:delete', args=(comment.pk,))

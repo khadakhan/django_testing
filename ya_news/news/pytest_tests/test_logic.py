@@ -1,35 +1,36 @@
-import pytest
 from http import HTTPStatus
 
-from django.urls import reverse
+import pytest
 from pytest_django.asserts import assertRedirects, assertFormError
 
 from news.forms import BAD_WORDS, WARNING
 from news.models import Comment
 
+pytestmark = pytest.mark.django_db
 
-@pytest.mark.django_db
+
 def test_anonymous_user_cant_create_comment(client,
-                                            pk_for_news_args,
+                                            news,
+                                            detail_url,
                                             form_data):
     """Анонимный пользователь не может создать комментарий."""
-    url = reverse('news:detail', args=pk_for_news_args)
-    client.post(url, data=form_data)
+    comments_count_before_post = Comment.objects.count()
+    client.post(detail_url, data=form_data)
     comments_count = Comment.objects.count()
-    assert comments_count == 0
+    assert comments_count == comments_count_before_post
 
 
 def test_user_can_create_comment(author_client,
                                  news,
+                                 detail_url,
                                  author,
-                                 pk_for_news_args,
                                  form_data,):
     """Авторизованный пользователь может создать комментарий."""
-    url = reverse('news:detail', args=pk_for_news_args)
-    response = author_client.post(url, data=form_data)
-    assertRedirects(response, f'{url}#comments')
+    comments_count_before_post = Comment.objects.count()
+    response = author_client.post(detail_url, data=form_data)
+    assertRedirects(response, f'{detail_url}#comments')
     comments_count = Comment.objects.count()
-    assert comments_count == 1
+    assert comments_count == 1 + comments_count_before_post
     comment = Comment.objects.get()
     assert comment.text == form_data['text']
     assert comment.news == news
@@ -37,11 +38,12 @@ def test_user_can_create_comment(author_client,
 
 
 def test_user_cant_use_bad_words(author_client,
-                                 pk_for_news_args):
+                                 detail_url,
+                                 news):
     """Проверка блокировки стоп-слов."""
-    url = reverse('news:detail', args=pk_for_news_args)
+    comments_count_before_post = Comment.objects.count()
     bad_words_data = {'text': f'Какой-то текст, {BAD_WORDS[0]}, еще текст'}
-    response = author_client.post(url, data=bad_words_data)
+    response = author_client.post(detail_url, data=bad_words_data)
     assertFormError(
         response,
         form='form',
@@ -49,57 +51,67 @@ def test_user_cant_use_bad_words(author_client,
         errors=WARNING
     )
     comments_count = Comment.objects.count()
-    assert comments_count == 0
+    assert comments_count == comments_count_before_post
 
 
 def test_author_can_delete_comment(author_client,
-                                   pk_for_comment_args,
-                                   pk_for_news_args,
-                                   ):
+                                   comment,
+                                   delete_url,
+                                   detail_url,
+                                   news):
     """Автор может удалять свой комментарий."""
-    delete_url = reverse('news:delete', args=pk_for_comment_args)
-    url_to_comments = reverse('news:detail',
-                              args=pk_for_news_args) + '#comments'
+    comments_count_before_delete = Comment.objects.count()
+    url_to_comments = f'{detail_url}#comments'
     response = author_client.delete(delete_url)
     assertRedirects(response, url_to_comments)
     comments_count = Comment.objects.count()
-    assert comments_count == 0
+    assert comments_count == comments_count_before_delete - 1
 
 
 def test_user_cant_delete_comment_of_another_user(not_author_client,
-                                                  pk_for_comment_args,
-                                                  ):
+                                                  delete_url,
+                                                  comment):
     """Не автор не может удалять свой комментарий."""
-    delete_url = reverse('news:delete', args=pk_for_comment_args)
+    comments_count_before_delete = Comment.objects.count()
     response = not_author_client.delete(delete_url)
     assert response.status_code == HTTPStatus.NOT_FOUND
     comments_count = Comment.objects.count()
-    assert comments_count == 1
+    assert comments_count == comments_count_before_delete
 
 
-@pytest.mark.django_db
-def test_author_can_edit_comment(pk_for_comment_args,
-                                 pk_for_news_args,
+def test_author_can_edit_comment(news,
+                                 author,
                                  author_client,
+                                 edit_url,
+                                 detail_url,
                                  form_data,
                                  comment):
     """Автор может редактировать свой комментарий."""
-    edit_url = reverse('news:edit', args=pk_for_comment_args)
-    url_to_comments = reverse('news:detail',
-                              args=pk_for_news_args) + '#comments'
+    comments_count_before_edit = Comment.objects.count()
+    url_to_comments = f'{detail_url}#comments'
     response = author_client.post(edit_url, data=form_data)
     assertRedirects(response, url_to_comments)
-    comment.refresh_from_db()
+    comment = Comment.objects.get()
     assert comment.text == form_data['text']
+    assert comment.news == news
+    assert comment.author == author
+    comments_count = Comment.objects.count()
+    assert comments_count_before_edit == comments_count
 
 
 def test_user_cant_edit_comment_of_another_user(not_author_client,
-                                                pk_for_comment_args,
+                                                news,
+                                                author,
+                                                edit_url,
                                                 form_data,
                                                 comment):
     """Не автор не может редактировать свой комментарий."""
-    edit_url = reverse('news:edit', args=pk_for_comment_args)
+    comments_count_before_edit = Comment.objects.count()
     response = not_author_client.post(edit_url, data=form_data)
     assert response.status_code == HTTPStatus.NOT_FOUND
-    comment.refresh_from_db()
-    assert comment.text == 'Текст комментария'
+    comment = Comment.objects.get()
+    assert comment.text != form_data['text']
+    assert comment.news == news
+    assert comment.author == author
+    comments_count = Comment.objects.count()
+    assert comments_count_before_edit == comments_count
