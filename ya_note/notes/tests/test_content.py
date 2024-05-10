@@ -1,51 +1,32 @@
-from django.contrib.auth import get_user_model
-from django.test import TestCase
-from django.urls import reverse
-
 from notes.forms import NoteForm
-from notes.models import Note
-
-User = get_user_model()
+from .conftest import TestFixtures
 
 
-class TestContent(TestCase):
-    @classmethod
-    def setUpTestData(cls):
-        cls.author = User.objects.create(username='Лев Толстой')
-        cls.reader = User.objects.create(username='Читатель простой')
-        cls.note = Note.objects.create(title='note1',
-                                       text='note1',
-                                       slug='note1',
-                                       author=cls.author)
+class TestContent(TestFixtures):
 
-    def test_notes_list_for_different_users(self):
-        """Проверяем, что отдельная заметка передаётся на страницу со списком
-        заметок в списке object_list, в словаре context;
-        В список заметок одного пользователя не попадают заметки другого
-        пользователя.
-        """
-        users_note_in_list = (
-            (self.author, True),
-            (self.reader, False),
-        )
-        for user, note_in_list in users_note_in_list:
-            self.client.force_login(user)
-            url = reverse('notes:list')
-            response = self.client.get(url)
-            object_list = response.context['object_list']
-            assert (self.note in object_list) is note_in_list
+    def test_author_note_in_list(self):
+        """Проверяем что зметка автора есть в списке у автора."""
+        response = self.author_client.get(self.list_url)
+        object_list = response.context['object_list']
+        count_note = object_list.count()
+        self.assertEqual(count_note, 1)
+        self.assertEqual(self.note.title, object_list[0].title)
+        self.assertEqual(self.note.text, object_list[0].text)
+        self.assertEqual(self.note.slug, object_list[0].slug)
+        self.assertEqual(self.note.author, object_list[0].author)
+
+    def test_not_author_note_in_list(self):
+        """Проверяем что заметки автора нет в списке не автора."""
+        response = self.not_author_client.get(self.list_url)
+        object_list = response.context['object_list']
+        count_note = object_list.count()
+        self.assertEqual(count_note, 0)
 
     def test_pages_contains_form(self):
-        """Проверяем, что на страницы создания и редактирования заметки
-        передаются формы.
-        """
-        name_args = (
-            ('notes:add', None),
-            ('notes:edit', (self.note.slug,)),
-        )
-        self.client.force_login(self.author)
-        for name, args in name_args:
-            url = reverse(name, args=args)
-            response = self.client.get(url)
-            assert 'form' in response.context
-            assert isinstance(response.context['form'], NoteForm)
+        """Проверяем, что на страницы заметки передаются формы."""
+        urls_form = (self.add_url, self.edit_url)
+        for url in urls_form:
+            with self.subTest(name=url):
+                response = self.author_client.get(url)
+                self.assertIn('form', response.context)
+                self.assertIsInstance(response.context['form'], NoteForm)
