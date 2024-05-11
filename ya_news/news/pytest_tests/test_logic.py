@@ -109,9 +109,9 @@ def test_user_cant_edit_comment_of_another_user(not_author_client,
     comments_count_before_edit = Comment.objects.count()
     response = not_author_client.post(edit_url, data=form_data)
     assert response.status_code == HTTPStatus.NOT_FOUND
-    comment = Comment.objects.get()
-    assert comment.text != form_data['text']
-    assert comment.news == news
-    assert comment.author == author
+    comment_in_db = Comment.objects.get()
+    assert comment_in_db.text == comment.text
+    assert comment_in_db.news == news
+    assert comment_in_db.author == author
     comments_count = Comment.objects.count()
     assert comments_count_before_edit == comments_count

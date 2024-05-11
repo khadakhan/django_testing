@@ -1,8 +1,7 @@
-from http import HTTPStatus
-
 from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
 from django.urls import reverse
+
 from notes.models import Note
 
 User = get_user_model()
@@ -36,20 +35,14 @@ class TestFixtures(TestCase):
                          'slug': 'note_slug'}
 
         cls.urls_for_tests = (
-            (cls.home_url, HTTPStatus.OK, None, None),
-            (cls.login_url, HTTPStatus.OK, None, None),
-            (cls.logout_url, HTTPStatus.OK, None, None),
-            (cls.signup_url, HTTPStatus.OK, None, None),
-            (cls.detail_url, f'{cls.login_url}?next={cls.detail_url}',
-             HTTPStatus.OK, HTTPStatus.NOT_FOUND),
-            (cls.edit_url, f'{cls.login_url}?next={cls.edit_url}',
-             HTTPStatus.OK, HTTPStatus.NOT_FOUND),
-            (cls.delete_url, f'{cls.login_url}?next={cls.delete_url}',
-             HTTPStatus.OK, HTTPStatus.NOT_FOUND),
-            (cls.add_url, f'{cls.login_url}?next={cls.add_url}',
-             None, None),
-            (cls.list_url, f'{cls.login_url}?next={cls.list_url}',
-             None, None),
-            (cls.success_url, f'{cls.login_url}?next={cls.success_url}',
-             None, None)
+            cls.detail_url,
+            cls.edit_url,
+            cls.delete_url,
+            cls.add_url,
+            cls.list_url,
+            cls.success_url,
+            cls.home_url,
+            cls.login_url,
+            cls.logout_url,
+            cls.signup_url,
         )
