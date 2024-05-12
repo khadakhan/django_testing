@@ -14,11 +14,10 @@ class TestRoutes(TestFixtures):
         )
         for url in self.urls_for_tests:
             with self.subTest(name=url):
+                response = self.anonimous.get(url)
                 if url in ulrs_for_anonimous_with_code_200:
-                    response = self.anonimous.get(url)
                     self.assertEqual(response.status_code, HTTPStatus.OK)
                 else:
-                    response = self.anonimous.get(url)
                     self.assertRedirects(
                         response,
                         f'{self.login_url}?next={url}'
@@ -41,11 +40,10 @@ class TestRoutes(TestFixtures):
         )
         for url in self.urls_for_tests:
             with self.subTest(name=url):
+                response = self.not_author_client.get(url)
                 if url in ulrs_for_not_author_with_code_404:
-                    response = self.not_author_client.get(url)
                     self.assertEqual(response.status_code,
                                      HTTPStatus.NOT_FOUND)
                 else:
-                    response = self.not_author_client.get(url)
                     self.assertEqual(response.status_code,
                                      HTTPStatus.OK)
